@@ -484,8 +484,11 @@
      画面にのみ表示し、PDF（#print-report）には出力しない。
      更新時は VERSION と CHANGELOG の両方を必ず更新する。
      ========================================================= */
-  const VERSION = 'ver.1.1.1';
+  const VERSION = 'ver.1.2.0';
   const CHANGELOG = [
+    { v:'ver.1.2.0', date:'2026-08-14', items:[
+      '「保存する」「保存してPDFを作成する」を押した後、入力フォームを自動的にクリアして新規作成モードに戻すように変更（続けて次の授業レポートを入力できる）'
+    ]},
     { v:'ver.1.1.1', date:'2026-08-14', items:[
       '修正：ver.1.1.0の2ページ問題の修正が不十分だったため再修正。印刷用レイアウトの高さを278mmまで縮小し、印刷ダイアログの既定ヘッダー/フッター分の余白があっても1ページに収まるようにした'
     ]},
@@ -700,8 +703,9 @@
     try{
       const entry = getFormEntry();
       const saved = await saveEntry(entry);
-      currentEditId = saved.id;
-      showStatus('保存しました（' + formatDateJapanese(saved.date) + '）');
+      const savedDateLabel = formatDateJapanese(saved.date);
+      clearForm();
+      showStatus('保存しました（' + savedDateLabel + '）。新しいレポートを入力できます');
     }catch(e){
       console.error(e);
       showStatus('保存に失敗しました。');
@@ -712,8 +716,8 @@
     try{
       const entry = getFormEntry();
       const saved = await saveEntry(entry);
-      currentEditId = saved.id;
       fillPrintReport(saved);
+      clearForm();
       showStatus('保存しました。PDF作成画面を開きます…');
       const originalTitle = document.title;
       document.title = formatDateForFilename(saved.date) + '_授業レポート';
