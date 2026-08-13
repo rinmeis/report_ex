@@ -41,6 +41,48 @@
     margin:8px 0 4px 0;
     letter-spacing:0.05em;
   }
+  .ver-badge{
+    display:inline-block;
+    margin-left:6px;
+    padding:1px 9px;
+    background:var(--box-fill);
+    border:1px solid var(--border);
+    border-radius:999px;
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:9px;
+    color:var(--ink-soft);
+    letter-spacing:0.02em;
+    vertical-align:2px;
+  }
+
+  .version-history{ margin-top:24px; }
+  .version-history summary{
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:9.5pt;
+    color:var(--ink-soft);
+    cursor:pointer;
+    list-style:none;
+    padding:2px 0;
+  }
+  .version-history summary::-webkit-details-marker{ display:none; }
+  .version-history summary::before{ content:"▸ "; }
+  .version-history[open] summary::before{ content:"▾ "; }
+  .changelog{ margin:10px 0 0 0; padding:0; list-style:none; }
+  .changelog li{ margin-bottom:12px; }
+  .changelog li:last-child{ margin-bottom:0; }
+  .changelog .cl-v{
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:10pt; font-weight:700; color:var(--ink);
+  }
+  .changelog .cl-d{
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:9pt; color:var(--ink-soft); margin-left:6px; font-weight:400;
+  }
+  .changelog ul{
+    margin:4px 0 0; padding-left:16px;
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:9pt; color:var(--ink-soft); line-height:1.8;
+  }
 
   .tabs{
     display:flex;
@@ -229,7 +271,8 @@
 
   #print-report{
     width:210mm;
-    min-height:297mm;
+    height:296mm; /* A4の297mmちょうどにすると印刷エンジンの端数計算で2ページ目に溢れることがあるため1mm安全マージンを持たせる */
+    overflow:hidden;
     background:#fff;
     padding:16mm 15mm 14mm 15mm;
     position:relative;
@@ -279,6 +322,7 @@
     body{ background:#fff; }
     .no-print{ display:none !important; }
     .print-only{ display:block !important; }
+    #print-report{ page-break-after:avoid; break-after:avoid; }
   }
 
   /* ==================== レスポンシブ（スマートフォン） ==================== */
@@ -298,7 +342,7 @@
 
 <div class="app no-print">
   <div class="app-header">
-    <h1>授業レポート作成</h1>
+    <h1>授業レポート作成<span class="ver-badge" id="ver-badge"></span></h1>
   </div>
 
   <div class="tabs">
@@ -373,6 +417,11 @@
     </div>
     <div id="entry-list"><p class="empty-note">読み込み中…</p></div>
   </section>
+
+  <details class="version-history">
+    <summary>更新履歴</summary>
+    <ul class="changelog" id="changelog"></ul>
+  </details>
 </div>
 
 <!-- 印刷専用（画面には表示されず、PDF作成時のみ使用） -->
@@ -424,6 +473,27 @@
   const STORAGE_PREFIX = 'lessonReportApp:entries:';
   let currentEditId = null; // null = 新規作成モード
 
+  /* =========================================================
+     バージョン（他アプリと共通のルール）
+     ---------------------------------------------------------
+     ver.X.Y.Z
+       バグ修正            → Z を +1
+       機能追加・仕様変更  → Y を +1、Z を 0
+     画面にのみ表示し、PDF（#print-report）には出力しない。
+     更新時は VERSION と CHANGELOG の両方を必ず更新する。
+     ========================================================= */
+  const VERSION = 'ver.1.1.0';
+  const CHANGELOG = [
+    { v:'ver.1.1.0', date:'2026-08-14', items:[
+      '修正：PDF出力が2ページに分かれてしまう不具合を修正（印刷用レイアウトの高さをA4ぴったりの297mmから296mmに変更し、overflow:hiddenで確実に1ページへ収める）',
+      'PDFのファイル名が「yyyymmdd_授業レポート」（yyyymmddは授業日、未入力時は当日日付）で保存されるように変更'
+    ]},
+    { v:'ver.1.0.0', date:'2026-08-13', items:[
+      '初版リリース（日付・宿題・授業範囲・次回以降・持ち物・備考・メモの入力とlocalStorage保存、一覧表示、A4 PDF出力）',
+      '画面上にのみ表示するバージョン情報・更新履歴を追加（PDFには出力されない）'
+    ]}
+  ];
+
   // ---------- ユーティリティ ----------
   function formatDateJapanese(isoDate){
     if(!isoDate) return '（日付未設定）';
@@ -435,6 +505,15 @@
 
   function genId(){
     return 'e' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
+  }
+
+  function formatDateForFilename(isoDate){
+    if(isoDate) return isoDate.replace(/-/g, '');
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return '' + y + m + day;
   }
 
   function showStatus(msg){
@@ -631,7 +710,12 @@
       currentEditId = saved.id;
       fillPrintReport(saved);
       showStatus('保存しました。PDF作成画面を開きます…');
-      setTimeout(() => window.print(), 150);
+      const originalTitle = document.title;
+      document.title = formatDateForFilename(saved.date) + '_授業レポート';
+      setTimeout(() => {
+        window.print();
+        document.title = originalTitle;
+      }, 150);
     }catch(e){
       console.error(e);
       showStatus('保存またはPDF作成に失敗しました。');
@@ -647,6 +731,13 @@
 
   // 初期表示：今日の日付をデフォルトで入れておく（空欄にしたい場合は消してOK）
   document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+
+  // バージョン情報・更新履歴の表示（画面のみ／PDFには出力しない）
+  document.getElementById('ver-badge').textContent = VERSION;
+  document.getElementById('changelog').innerHTML = CHANGELOG.map(c =>
+    '<li><span class="cl-v">' + c.v + '</span><span class="cl-d">' + c.date + '</span>' +
+    '<ul>' + c.items.map(item => '<li>' + item + '</li>').join('') + '</ul></li>'
+  ).join('');
 })();
 </script>
 
