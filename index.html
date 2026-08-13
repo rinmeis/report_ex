@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>授業レポート作成</title>
+<style>
+  :root{
+    --paper:#F7F8F4;
+    --box-fill:#FDFDFB;
+    --ink:#33413B;
+    --ink-soft:#5B6B62;
+    --accent:#6E8F73;      /* セージグリーン */
+    --accent-dark:#587263;
+    --accent-sub:#7E97AC;  /* ダスティブルー */
+    --border:#D8DED2;
+    --border-soft:#E7EAE3;
+    --memo-bg:#FBF3DE;
+    --memo-border:#E4CE95;
+    --danger:#B8695F;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    background:#EDEEE9;
+    font-family:"游明朝","Yu Mincho","YuMincho","游明朝体","Noto Serif CJK JP","Noto Sans CJK JP", serif;
+    color:var(--ink);
+  }
+
+  /* ==================== 画面UI ==================== */
+  .app{
+    max-width:640px;
+    margin:0 auto;
+    padding:16px 16px 60px 16px;
+  }
+
+  .app-header h1{
+    font-size:15pt;
+    margin:8px 0 4px 0;
+    letter-spacing:0.05em;
+  }
+
+  .tabs{
+    display:flex;
+    gap:6px;
+    margin-bottom:16px;
+    border-bottom:1.5px solid var(--accent);
+  }
+  .tab-btn{
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:10.5pt;
+    padding:8px 16px;
+    border:none;
+    background:none;
+    color:var(--ink-soft);
+    cursor:pointer;
+    border-radius:4px 4px 0 0;
+  }
+  .tab-btn.active{
+    background:var(--accent);
+    color:#fff;
+  }
+
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  fieldset{
+    border:1px solid var(--border);
+    border-radius:2px 6px 6px 6px;
+    background:var(--box-fill);
+    margin:0 0 14px 0;
+    padding:10px 14px 12px 14px;
+  }
+  legend{
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:9.5pt;
+    letter-spacing:0.1em;
+    background:var(--accent);
+    color:#fff;
+    padding:3px 12px;
+    border-radius:3px;
+    margin-left:-4px;
+  }
+
+  .field-row{
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+    margin-bottom:8px;
+  }
+  .field-row:last-child{ margin-bottom:0; }
+  .field-row .sub-label{
+    flex:0 0 40px;
+    font-size:9pt;
+    color:var(--accent-sub);
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    padding-top:8px;
+  }
+
+  label.date-label{
+    display:block;
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:9.5pt;
+    color:var(--ink-soft);
+    margin-bottom:16px;
+  }
+  label.date-label span{ display:block; margin-bottom:4px; }
+
+  input[type="date"], textarea{
+    width:100%;
+    font-family:inherit;
+    font-size:10.5pt;
+    color:var(--ink);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:7px 8px;
+    background:#fff;
+    resize:vertical;
+    -webkit-appearance:none;
+    appearance:none;
+  }
+  textarea{ min-height:2.4em; line-height:1.5; }
+  fieldset > textarea{ min-height:3.6em; }
+  input[type="date"]{ max-width:220px; }
+
+  .memo-field{
+    background:var(--memo-bg);
+    border:1px dashed var(--memo-border);
+  }
+  .memo-field legend{
+    background:var(--memo-border);
+    color:#5B4A1E;
+  }
+  .memo-field p.hint{
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:8pt;
+    color:#8A7238;
+    margin:0 0 6px 0;
+  }
+
+  .btn-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:6px;
+  }
+  .btn{
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:10pt;
+    padding:10px 16px;
+    border-radius:5px;
+    cursor:pointer;
+  }
+  .btn.primary{
+    background:var(--accent);
+    color:#fff;
+    border:1px solid var(--accent);
+  }
+  .btn.primary:hover{ background:var(--accent-dark); }
+  .btn.secondary{
+    background:#fff;
+    color:var(--accent-dark);
+    border:1px solid var(--accent);
+  }
+  .btn.ghost{
+    background:none;
+    color:var(--danger);
+    border:1px solid var(--border);
+  }
+  .btn.ghost:hover{ border-color:var(--danger); }
+
+  .status-msg{
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:9.5pt;
+    color:var(--accent-dark);
+    min-height:1.4em;
+    margin:8px 0 0 0;
+  }
+
+  /* 一覧 */
+  .list-actions{
+    display:flex;
+    justify-content:flex-end;
+    margin-bottom:10px;
+  }
+  .entry-card{
+    border:1px solid var(--border);
+    border-radius:4px 8px 8px 8px;
+    background:var(--box-fill);
+    padding:10px 14px;
+    margin-bottom:10px;
+  }
+  .entry-card .entry-date{
+    font-size:11pt;
+    margin-bottom:4px;
+  }
+  .entry-card .entry-preview{
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:9pt;
+    color:var(--ink-soft);
+    margin-bottom:8px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .entry-card .entry-actions{
+    display:flex;
+    gap:8px;
+  }
+  .entry-card .entry-actions button{
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:9pt;
+    padding:5px 12px;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  .btn-edit{ background:var(--accent-sub); color:#fff; border:1px solid var(--accent-sub); }
+  .btn-delete{ background:none; color:var(--danger); border:1px solid var(--border); }
+  .empty-note{
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:9.5pt;
+    color:var(--ink-soft);
+  }
+
+  /* ==================== 印刷専用レイアウト（画面には出さない） ==================== */
+  .print-only{ display:none; }
+
+  #print-report{
+    width:210mm;
+    min-height:297mm;
+    background:#fff;
+    padding:16mm 15mm 14mm 15mm;
+    position:relative;
+  }
+  #print-report .doc-header{
+    border-bottom:1.5px solid var(--accent);
+    padding-bottom:10px;
+    margin-bottom:20px;
+  }
+  #print-report .doc-date-main{ font-size:16pt; letter-spacing:0.08em; color:var(--ink); }
+  #print-report .doc-date-main small{
+    display:block;
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:8pt; color:var(--accent-sub); letter-spacing:0.2em; margin-bottom:3px;
+  }
+  #print-report .p-section{ margin-bottom:14px; }
+  #print-report .p-tab{
+    display:inline-block; background:var(--accent); color:#fff;
+    font-size:9.5pt; letter-spacing:0.1em; padding:3px 14px 3px 12px;
+    border-radius:3px 6px 0 0; position:relative; top:1px;
+  }
+  #print-report .p-box{
+    border:1px solid var(--border); border-radius:2px 6px 6px 6px;
+    background:var(--box-fill); padding:10px 14px;
+  }
+  #print-report .p-subrow{ display:flex; gap:10px; margin-bottom:6px; }
+  #print-report .p-subrow:last-child{ margin-bottom:0; }
+  #print-report .p-sublabel{
+    flex:0 0 42px; font-size:9pt; color:var(--accent-sub);
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif; padding-top:1px;
+  }
+  #print-report .p-subcontent{ flex:1; font-size:10.5pt; line-height:1.55; white-space:pre-line; }
+  #print-report .p-two-col{ display:flex; gap:14px; }
+  #print-report .p-two-col .p-section{ flex:1; }
+  #print-report .p-plain{ font-size:10.5pt; line-height:1.55; white-space:pre-line; }
+  #print-report .p-remarks{ min-height:50mm; font-size:10.5pt; line-height:1.9; white-space:pre-line; }
+  #print-report .p-footer{
+    position:absolute; bottom:10mm; left:15mm; right:15mm;
+    display:flex; justify-content:flex-end;
+    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+    font-size:8pt; color:var(--ink-soft);
+    border-top:1px solid var(--border-soft); padding-top:6px;
+  }
+
+  @page{ size:A4 portrait; margin:0; }
+  @media print{
+    body{ background:#fff; }
+    .no-print{ display:none !important; }
+    .print-only{ display:block !important; }
+  }
+
+  /* ==================== レスポンシブ（スマートフォン） ==================== */
+  @media (max-width: 480px){
+    .app{ padding:12px 12px 48px 12px; }
+    .app-header h1{ font-size:13.5pt; }
+    .tab-btn{ flex:1; padding:10px 8px; font-size:10pt; }
+    .field-row{ flex-direction:column; gap:4px; }
+    .field-row .sub-label{ flex:none; padding-top:0; }
+    .btn-row{ flex-direction:column; }
+    .btn{ width:100%; text-align:center; }
+    input[type="date"]{ max-width:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app no-print">
+  <div class="app-header">
+    <h1>授業レポート作成</h1>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="edit">入力・編集</button>
+    <button class="tab-btn" data-tab="list">一覧</button>
+  </div>
+
+  <!-- 入力・編集タブ -->
+  <section id="tab-edit" class="tab-panel active">
+    <label class="date-label">
+      <span>日付</span>
+      <input type="date" id="f-date">
+    </label>
+
+    <fieldset>
+      <legend>宿題</legend>
+      <div class="field-row">
+        <div class="sub-label">代数</div>
+        <textarea id="f-hw-alg" placeholder="例：二次方程式の問題集と今日の授業でやった平方根の問題集"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="sub-label">幾何</div>
+        <textarea id="f-hw-geo" placeholder="例：学校の宿題"></textarea>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>授業範囲</legend>
+      <div class="field-row">
+        <div class="sub-label">代数</div>
+        <textarea id="f-scope-alg" placeholder="例：平方根、二次方程式（因数分解による解法まで）"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="sub-label">幾何</div>
+        <textarea id="f-scope-geo" placeholder="例：時間の問題から無し"></textarea>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>次回以降</legend>
+      <textarea id="f-next" placeholder="例：授業サポート"></textarea>
+    </fieldset>
+
+    <fieldset>
+      <legend>持ち物</legend>
+      <textarea id="f-items" placeholder="例：いつも通り"></textarea>
+    </fieldset>
+
+    <fieldset>
+      <legend>備考</legend>
+      <textarea id="f-remarks" style="min-height:6em;" placeholder="自由記述"></textarea>
+    </fieldset>
+
+    <fieldset class="memo-field">
+      <legend>メモ</legend>
+      <p class="hint">この欄はPDFには反映されません。自分用の下書き・確認事項などに使えます。</p>
+      <textarea id="f-memo" placeholder="PDFには出力されない自分用メモ"></textarea>
+    </fieldset>
+
+    <div class="btn-row">
+      <button type="button" class="btn primary" id="btn-save-pdf">保存してPDFを作成する</button>
+      <button type="button" class="btn secondary" id="btn-save">保存する</button>
+      <button type="button" class="btn ghost" id="btn-discard">破棄する</button>
+    </div>
+    <p class="status-msg" id="status-msg" aria-live="polite"></p>
+  </section>
+
+  <!-- 一覧タブ -->
+  <section id="tab-list" class="tab-panel">
+    <div class="list-actions">
+      <button type="button" class="btn secondary" id="btn-new">＋ 新規作成</button>
+    </div>
+    <div id="entry-list"><p class="empty-note">読み込み中…</p></div>
+  </section>
+</div>
+
+<!-- 印刷専用（画面には表示されず、PDF作成時のみ使用） -->
+<div id="print-report" class="print-only">
+  <div class="doc-header">
+    <div class="doc-date-main">
+      <small>LESSON REPORT</small>
+      <span id="p-date">（日付未設定）</span>
+    </div>
+  </div>
+
+  <div class="p-section">
+    <span class="p-tab">宿題</span>
+    <div class="p-box">
+      <div class="p-subrow"><div class="p-sublabel">代数</div><div class="p-subcontent" id="p-hw-alg"></div></div>
+      <div class="p-subrow"><div class="p-sublabel">幾何</div><div class="p-subcontent" id="p-hw-geo"></div></div>
+    </div>
+  </div>
+
+  <div class="p-section">
+    <span class="p-tab">授業範囲</span>
+    <div class="p-box">
+      <div class="p-subrow"><div class="p-sublabel">代数</div><div class="p-subcontent" id="p-scope-alg"></div></div>
+      <div class="p-subrow"><div class="p-sublabel">幾何</div><div class="p-subcontent" id="p-scope-geo"></div></div>
+    </div>
+  </div>
+
+  <div class="p-two-col">
+    <div class="p-section">
+      <span class="p-tab">次回以降</span>
+      <div class="p-box"><div class="p-plain" id="p-next"></div></div>
+    </div>
+    <div class="p-section">
+      <span class="p-tab">持ち物</span>
+      <div class="p-box"><div class="p-plain" id="p-items"></div></div>
+    </div>
+  </div>
+
+  <div class="p-section">
+    <span class="p-tab">備考</span>
+    <div class="p-box p-remarks" id="p-remarks"></div>
+  </div>
+
+  <div class="p-footer"><span>1 / 1</span></div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_PREFIX = 'lessonReportApp:entries:';
+  let currentEditId = null; // null = 新規作成モード
+
+  // ---------- ユーティリティ ----------
+  function formatDateJapanese(isoDate){
+    if(!isoDate) return '（日付未設定）';
+    const d = new Date(isoDate + 'T00:00:00');
+    if(isNaN(d.getTime())) return '（日付未設定）';
+    const w = ['日','月','火','水','木','金','土'][d.getDay()];
+    return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日（' + w + '）';
+  }
+
+  function genId(){
+    return 'e' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
+  }
+
+  function showStatus(msg){
+    const el = document.getElementById('status-msg');
+    el.textContent = msg;
+    clearTimeout(showStatus._t);
+    showStatus._t = setTimeout(() => { el.textContent = ''; }, 3500);
+  }
+
+  // ---------- フォーム <-> エントリ ----------
+  function getFormEntry(){
+    return {
+      id: currentEditId,
+      date: document.getElementById('f-date').value,
+      hwAlg: document.getElementById('f-hw-alg').value,
+      hwGeo: document.getElementById('f-hw-geo').value,
+      scopeAlg: document.getElementById('f-scope-alg').value,
+      scopeGeo: document.getElementById('f-scope-geo').value,
+      next: document.getElementById('f-next').value,
+      items: document.getElementById('f-items').value,
+      remarks: document.getElementById('f-remarks').value,
+      memo: document.getElementById('f-memo').value
+    };
+  }
+
+  function setFormEntry(entry){
+    currentEditId = entry.id || null;
+    document.getElementById('f-date').value = entry.date || '';
+    document.getElementById('f-hw-alg').value = entry.hwAlg || '';
+    document.getElementById('f-hw-geo').value = entry.hwGeo || '';
+    document.getElementById('f-scope-alg').value = entry.scopeAlg || '';
+    document.getElementById('f-scope-geo').value = entry.scopeGeo || '';
+    document.getElementById('f-next').value = entry.next || '';
+    document.getElementById('f-items').value = entry.items || '';
+    document.getElementById('f-remarks').value = entry.remarks || '';
+    document.getElementById('f-memo').value = entry.memo || '';
+  }
+
+  function clearForm(){
+    currentEditId = null;
+    setFormEntry({});
+  }
+
+  // ---------- 保存領域(localStorage) ----------
+  // 将来的にFirebase等の複数端末対応ストレージへ差し替えやすいよう、
+  // 保存・取得処理はこの3関数にのみ閉じ込めている。
+  async function saveEntry(entry){
+    if(!entry.id){ entry.id = genId(); }
+    entry.updatedAt = new Date().toISOString();
+    localStorage.setItem(STORAGE_PREFIX + entry.id, JSON.stringify(entry));
+    return entry;
+  }
+
+  async function loadAllEntries(){
+    try{
+      const entries = [];
+      for(let i = 0; i < localStorage.length; i++){
+        const key = localStorage.key(i);
+        if(!key || key.indexOf(STORAGE_PREFIX) !== 0) continue;
+        try{
+          const raw = localStorage.getItem(key);
+          if(raw) entries.push(JSON.parse(raw));
+        }catch(e){ /* 該当キーが読めない場合はスキップ */ }
+      }
+      entries.sort((a,b) => {
+        if(a.date && b.date) return b.date.localeCompare(a.date);
+        if(a.date && !b.date) return -1;
+        if(!a.date && b.date) return 1;
+        return (b.updatedAt||'').localeCompare(a.updatedAt||'');
+      });
+      return entries;
+    }catch(e){
+      console.error('一覧の読み込みに失敗しました', e);
+      return null; // 読み込み失敗を区別
+    }
+  }
+
+  async function deleteEntry(id){
+    try{
+      localStorage.removeItem(STORAGE_PREFIX + id);
+    }catch(e){
+      console.error('削除に失敗しました', e);
+    }
+  }
+
+  // ---------- 一覧描画 ----------
+  async function renderList(){
+    const container = document.getElementById('entry-list');
+    container.innerHTML = '<p class="empty-note">読み込み中…</p>';
+    const entries = await loadAllEntries();
+
+    if(entries === null){
+      container.innerHTML = '<p class="empty-note">一覧の読み込みに失敗しました。時間をおいて再度お試しください。</p>';
+      return;
+    }
+    if(entries.length === 0){
+      container.innerHTML = '<p class="empty-note">保存されたレポートはまだありません。</p>';
+      return;
+    }
+
+    container.innerHTML = '';
+    for(const entry of entries){
+      const card = document.createElement('div');
+      card.className = 'entry-card';
+
+      const dateEl = document.createElement('div');
+      dateEl.className = 'entry-date';
+      dateEl.textContent = formatDateJapanese(entry.date);
+      card.appendChild(dateEl);
+
+      const previewText = [entry.hwAlg, entry.hwGeo, entry.remarks].filter(Boolean).join(' / ') || '（内容未入力）';
+      const previewEl = document.createElement('div');
+      previewEl.className = 'entry-preview';
+      previewEl.textContent = previewText;
+      card.appendChild(previewEl);
+
+      const actions = document.createElement('div');
+      actions.className = 'entry-actions';
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn-edit';
+      editBtn.textContent = '編集';
+      editBtn.addEventListener('click', () => {
+        setFormEntry(entry);
+        switchTab('edit');
+      });
+      actions.appendChild(editBtn);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn-delete';
+      delBtn.textContent = '削除';
+      delBtn.addEventListener('click', async () => {
+        if(confirm('このレポートを削除しますか？この操作は取り消せません。')){
+          await deleteEntry(entry.id);
+          if(currentEditId === entry.id) clearForm();
+          renderList();
+        }
+      });
+      actions.appendChild(delBtn);
+
+      card.appendChild(actions);
+      container.appendChild(card);
+    }
+  }
+
+  // ---------- 印刷用レイアウトへの反映 ----------
+  function fillPrintReport(entry){
+    document.getElementById('p-date').textContent = formatDateJapanese(entry.date);
+    document.getElementById('p-hw-alg').textContent = entry.hwAlg || '';
+    document.getElementById('p-hw-geo').textContent = entry.hwGeo || '';
+    document.getElementById('p-scope-alg').textContent = entry.scopeAlg || '';
+    document.getElementById('p-scope-geo').textContent = entry.scopeGeo || '';
+    document.getElementById('p-next').textContent = entry.next || '';
+    document.getElementById('p-items').textContent = entry.items || '';
+    document.getElementById('p-remarks').textContent = entry.remarks || '';
+    // メモ（entry.memo）はここで意図的に使用していません＝PDFに出力されません
+  }
+
+  // ---------- タブ切り替え ----------
+  function switchTab(name){
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    if(name === 'list') renderList();
+  }
+
+  // ---------- イベント ----------
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  document.getElementById('btn-new').addEventListener('click', () => {
+    clearForm();
+    switchTab('edit');
+    showStatus('新規作成モードにしました');
+  });
+
+  document.getElementById('btn-save').addEventListener('click', async () => {
+    try{
+      const entry = getFormEntry();
+      const saved = await saveEntry(entry);
+      currentEditId = saved.id;
+      showStatus('保存しました（' + formatDateJapanese(saved.date) + '）');
+    }catch(e){
+      console.error(e);
+      showStatus('保存に失敗しました。');
+    }
+  });
+
+  document.getElementById('btn-save-pdf').addEventListener('click', async () => {
+    try{
+      const entry = getFormEntry();
+      const saved = await saveEntry(entry);
+      currentEditId = saved.id;
+      fillPrintReport(saved);
+      showStatus('保存しました。PDF作成画面を開きます…');
+      setTimeout(() => window.print(), 150);
+    }catch(e){
+      console.error(e);
+      showStatus('保存またはPDF作成に失敗しました。');
+    }
+  });
+
+  document.getElementById('btn-discard').addEventListener('click', () => {
+    if(confirm('入力中の内容を破棄します。よろしいですか？（保存済みのデータには影響しません）')){
+      clearForm();
+      showStatus('破棄しました');
+    }
+  });
+
+  // 初期表示：今日の日付をデフォルトで入れておく（空欄にしたい場合は消してOK）
+  document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+})();
+</script>
+
+</body>
+</html>
