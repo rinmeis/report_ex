@@ -571,6 +571,147 @@
   })();
   ListDetail.injectCss();
 
+  // ---------- 一覧の月ごと表示（ver.1.4.0） ----------
+  /* ver.1.4.0: 一覧を月ごとにまとめて表示するモジュール(mydiaryの日記一覧と同じ仕組み)
+     使い方:
+       ListMonths.injectCss();                                    // 起動時に1回
+       ListMonths.render(container, entries, buildCard);          // 一覧を描く
+         entries   : 日付の新しい順に並んだレポートの配列(日付未設定は末尾)
+         buildCard : entry を受け取り、カードのDOM要素を返す関数
+     仕様:
+       - 「2026年10月 3件」のような見出しを押すと、その月を開閉する
+       - 最初に開くのは「今月」と「先月」(今日の日付が基準。レポートが無い月は見出しごと出ない)
+       - 日付未設定のレポートは、最後の「日付未設定」見出しにまとめる(最初は閉じている)
+       - 開閉の状態は、ページを開いている間だけ保持する(再読み込みで最初に戻る)
+       - 開閉のたびにカードを作り直す(書き込みはしないのでデータは変わらない) */
+  const ListMonths = (function(){
+    const CSS = `
+    .month-head{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      width:100%;
+      background:none;
+      border:none;
+      border-bottom:1px solid var(--border-soft);
+      padding:10px 2px;
+      margin:0 0 8px;
+      font-family:inherit;
+      font-size:11pt;
+      color:var(--ink);
+      text-align:left;
+      cursor:pointer;
+      -webkit-appearance:none;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .month-head .chev{
+      flex:0 0 auto;
+      width:7px;
+      height:7px;
+      border-right:2px solid var(--ink-soft);
+      border-bottom:2px solid var(--ink-soft);
+      transform:rotate(-45deg);
+      margin:0 4px 0 2px;
+    }
+    .month-head[aria-expanded="true"] .chev{ transform:rotate(45deg); margin-top:-3px; }
+    .month-head .month-count{
+      margin-left:auto;
+      font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+      font-size:9pt;
+      color:var(--ink-soft);
+    }
+    .month-group{ margin-bottom:6px; }`;
+
+    const NONE = 'none';            // 日付未設定のグループ名
+    let openMonths = null;          // 開いている月('YYYY-MM'または'none')。最初の描画で決める
+    let last = null;                // 直前の描画の引数(開閉で描き直すために保持)
+
+    function injectCss(){
+      if(document.getElementById('list-months-css')) return;
+      const st = document.createElement('style');
+      st.id = 'list-months-css';
+      st.textContent = CSS;
+      document.head.appendChild(st);
+    }
+
+    function ymOf(date){
+      return /^\d{4}-\d{2}/.test(date || '') ? date.slice(0, 7) : NONE;
+    }
+
+    // 今日を基準に「今月」と「先月」のキーを返す
+    function defaultOpenSet(now){
+      const y = now.getFullYear();
+      const m = now.getMonth() + 1;             // 1〜12
+      const key = (yy, mm) => yy + '-' + String(mm).padStart(2, '0');
+      const prev = m === 1 ? key(y - 1, 12) : key(y, m - 1);
+      return new Set([key(y, m), prev]);
+    }
+
+    // 日付の新しい順に並んだ配列を、同じ月ごとにまとめる(並びは保つ)
+    function group(entries){
+      const groups = [];
+      entries.forEach(e => {
+        const ym = ymOf(e.date);
+        let g = groups[groups.length - 1];
+        if(!g || g.ym !== ym){
+          g = groups.find(x => x.ym === ym);    // 並びが崩れていても同じ月は1つにまとめる
+          if(!g){ g = { ym: ym, entries: [] }; groups.push(g); }
+        }
+        g.entries.push(e);
+      });
+      return groups;
+    }
+
+    function label(ym){
+      if(ym === NONE) return '日付未設定';
+      const p = ym.split('-');
+      return p[0] + '年' + parseInt(p[1], 10) + '月';
+    }
+
+    function toggle(ym){
+      if(openMonths.has(ym)) openMonths.delete(ym); else openMonths.add(ym);
+      if(last) render(last.container, last.entries, last.buildCard);
+    }
+
+    function render(container, entries, buildCard){
+      if(openMonths === null) openMonths = defaultOpenSet(new Date());
+      last = { container: container, entries: entries, buildCard: buildCard };
+      container.innerHTML = '';
+      for(const g of group(entries)){
+        const open = openMonths.has(g.ym);
+        const wrap = document.createElement('div');
+        wrap.className = 'month-group';
+
+        const head = document.createElement('button');
+        head.type = 'button';
+        head.className = 'month-head';
+        head.setAttribute('aria-expanded', open ? 'true' : 'false');
+        const chev = document.createElement('span');
+        chev.className = 'chev';
+        chev.setAttribute('aria-hidden', 'true');
+        const name = document.createElement('span');
+        name.textContent = label(g.ym);
+        const cnt = document.createElement('span');
+        cnt.className = 'month-count';
+        cnt.textContent = g.entries.length + '件';
+        head.appendChild(chev);
+        head.appendChild(name);
+        head.appendChild(cnt);
+        head.addEventListener('click', () => toggle(g.ym));
+        wrap.appendChild(head);
+
+        if(open){
+          for(const e of g.entries) wrap.appendChild(buildCard(e));
+        }
+        container.appendChild(wrap);
+      }
+    }
+
+    return { injectCss, render, defaultOpenSet, group };
+  })();
+  ListMonths.injectCss();
+
+
 
   /* =========================================================
      バージョン（他アプリと共通のルール）
@@ -581,8 +722,11 @@
      画面にのみ表示し、PDF（#print-report）には出力しない。
      更新時は VERSION と CHANGELOG の両方を必ず更新する。
      ========================================================= */
-  const VERSION = 'ver.1.3.0';
+  const VERSION = 'ver.1.4.0';
   const CHANGELOG = [
+    { v:'ver.1.4.0', date:'2026-10-11', items:[
+      '一覧を月ごとにまとめて表示するように変更（「2026年10月 3件」のような見出しを押して開閉。最初は今月と先月だけ開き、日付未設定のレポートは最後の「日付未設定」にまとめる。開閉の状態はページを開いている間だけ保持）'
+    ]},
     { v:'ver.1.3.0', date:'2026-10-11', items:[
       '一覧画面に、その回の「宿題」と「授業範囲」（それぞれ代数・幾何）を全文表示するように変更（長い文は折り返して表示。従来の「宿題と備考を1行につないだ表示」は廃止し、備考は一覧に出さない）'
     ]},
@@ -722,8 +866,7 @@
       return;
     }
 
-    container.innerHTML = '';
-    for(const entry of entries){
+    const buildCard = (entry) => {
       const card = document.createElement('div');
       card.className = 'entry-card';
 
@@ -759,8 +902,10 @@
       actions.appendChild(delBtn);
 
       card.appendChild(actions);
-      container.appendChild(card);
-    }
+      return card;
+    };
+
+    ListMonths.render(container, entries, buildCard);
   }
 
   // ---------- 印刷用レイアウトへの反映 ----------
