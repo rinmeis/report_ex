@@ -236,20 +236,12 @@
   }
   .entry-card .entry-date{
     font-size:11pt;
-    margin-bottom:4px;
-  }
-  .entry-card .entry-preview{
-    font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
-    font-size:9pt;
-    color:var(--ink-soft);
-    margin-bottom:8px;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+    margin-bottom:6px;
   }
   .entry-card .entry-actions{
     display:flex;
     gap:8px;
+    margin-top:3px;
   }
   .entry-card .entry-actions button{
     font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
@@ -475,6 +467,111 @@
   const STORAGE_PREFIX = 'lessonReportApp:entries:';
   let currentEditId = null; // null = 新規作成モード
 
+  // ---------- 一覧の詳細表示（ver.1.3.0） ----------
+  /* ver.1.3.0: 一覧画面に「宿題」と「授業範囲」を表示するモジュール
+     使い方:
+       ListDetail.injectCss();                       // 起動時に1回
+       card.appendChild(ListDetail.buildRows(entry)); // 日付の下(編集/削除ボタンの上)に入れる
+     本体の index.html には、このファイルの内容をそのまま <script> に貼り付けて組み込む。
+     備考(remarks)とメモ(memo)は一覧に出さない。 */
+  const ListDetail = (function(){
+    const CSS = `
+    .detail-row{
+      display:flex;
+      gap:8px;
+      align-items:flex-start;
+      margin-bottom:5px;
+    }
+    .detail-label{
+      flex:0 0 auto;
+      min-width:2.9em;
+      text-align:center;
+      background:var(--accent);
+      color:#fff;
+      border-radius:3px;
+      font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+      font-size:8.5pt;
+      line-height:1.6;
+      padding:1px 7px;
+      margin-top:1px;
+    }
+    .detail-label.scope{ background:var(--accent-sub); }
+    .detail-text{
+      flex:1 1 auto;
+      min-width:0;
+      font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+      font-size:9.5pt;
+      line-height:1.6;
+      color:var(--ink);
+      white-space:pre-wrap;
+      overflow-wrap:anywhere;
+    }
+    .detail-text .sub{ color:var(--ink-soft); }
+    .detail-text .sub.empty{ color:var(--ink-soft); opacity:.7; }
+    .detail-none{
+      font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
+      font-size:9.5pt;
+      color:var(--ink-soft);
+      margin-bottom:8px;
+    }`;
+
+    function injectCss(){
+      if(document.getElementById('list-detail-css')) return;
+      const st = document.createElement('style');
+      st.id = 'list-detail-css';
+      st.textContent = CSS;
+      document.head.appendChild(st);
+    }
+
+    function line(subject, value){
+      const div = document.createElement('div');
+      const v = (value || '').trim();
+      const s = document.createElement('span');
+      s.className = 'sub' + (v ? '' : ' empty');
+      s.textContent = subject + '：';
+      div.appendChild(s);
+      div.appendChild(document.createTextNode(v || '—'));
+      return div;
+    }
+
+    function row(label, cls, alg, geo){
+      const r = document.createElement('div');
+      r.className = 'detail-row';
+      const lb = document.createElement('span');
+      lb.className = 'detail-label' + (cls ? ' ' + cls : '');
+      lb.textContent = label;
+      const tx = document.createElement('div');
+      tx.className = 'detail-text';
+      tx.appendChild(line('代数', alg));
+      tx.appendChild(line('幾何', geo));
+      r.appendChild(lb);
+      r.appendChild(tx);
+      return r;
+    }
+
+    // 宿題・授業範囲の4項目がすべて空のときは「（内容未入力）」を1行だけ出す
+    function buildRows(entry){
+      const wrap = document.createElement('div');
+      wrap.className = 'detail-rows';
+      const has = [entry.hwAlg, entry.hwGeo, entry.scopeAlg, entry.scopeGeo]
+        .some(v => (v || '').trim() !== '');
+      if(!has){
+        const p = document.createElement('div');
+        p.className = 'detail-none';
+        p.textContent = '（内容未入力）';
+        wrap.appendChild(p);
+        return wrap;
+      }
+      wrap.appendChild(row('宿題', '', entry.hwAlg, entry.hwGeo));
+      wrap.appendChild(row('授業', 'scope', entry.scopeAlg, entry.scopeGeo));
+      return wrap;
+    }
+
+    return { injectCss, buildRows };
+  })();
+  ListDetail.injectCss();
+
+
   /* =========================================================
      バージョン（他アプリと共通のルール）
      ---------------------------------------------------------
@@ -484,8 +581,11 @@
      画面にのみ表示し、PDF（#print-report）には出力しない。
      更新時は VERSION と CHANGELOG の両方を必ず更新する。
      ========================================================= */
-  const VERSION = 'ver.1.2.0';
+  const VERSION = 'ver.1.3.0';
   const CHANGELOG = [
+    { v:'ver.1.3.0', date:'2026-10-11', items:[
+      '一覧画面に、その回の「宿題」と「授業範囲」（それぞれ代数・幾何）を全文表示するように変更（長い文は折り返して表示。従来の「宿題と備考を1行につないだ表示」は廃止し、備考は一覧に出さない）'
+    ]},
     { v:'ver.1.2.0', date:'2026-08-14', items:[
       '「保存する」「保存してPDFを作成する」を押した後、入力フォームを自動的にクリアして新規作成モードに戻すように変更（続けて次の授業レポートを入力できる）'
     ]},
@@ -632,11 +732,7 @@
       dateEl.textContent = formatDateJapanese(entry.date);
       card.appendChild(dateEl);
 
-      const previewText = [entry.hwAlg, entry.hwGeo, entry.remarks].filter(Boolean).join(' / ') || '（内容未入力）';
-      const previewEl = document.createElement('div');
-      previewEl.className = 'entry-preview';
-      previewEl.textContent = previewText;
-      card.appendChild(previewEl);
+      card.appendChild(ListDetail.buildRows(entry));
 
       const actions = document.createElement('div');
       actions.className = 'entry-actions';
