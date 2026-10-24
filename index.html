@@ -6,7 +6,6 @@
 <title>授業レポート作成</title>
 <style>
   :root{
-    --paper:#F7F8F4;
     --box-fill:#FDFDFB;
     --ink:#33413B;
     --ink-soft:#5B6B62;
@@ -468,11 +467,8 @@
   let currentEditId = null; // null = 新規作成モード
 
   // ---------- 一覧の詳細表示（ver.1.3.0） ----------
-  /* ver.1.3.0: 一覧画面に「宿題」と「授業範囲」を表示するモジュール
-     使い方:
-       ListDetail.injectCss();                       // 起動時に1回
-       card.appendChild(ListDetail.buildRows(entry)); // 日付の下(編集/削除ボタンの上)に入れる
-     本体の index.html には、このファイルの内容をそのまま <script> に貼り付けて組み込む。
+  /* 一覧のカードに「宿題」と「授業範囲」(それぞれ代数・幾何)を全文表示する。
+       buildRows(entry): カードの日付の下に入れるDOM要素を返す
      備考(remarks)とメモ(memo)は一覧に出さない。 */
   const ListDetail = (function(){
     const CSS = `
@@ -507,7 +503,7 @@
       overflow-wrap:anywhere;
     }
     .detail-text .sub{ color:var(--ink-soft); }
-    .detail-text .sub.empty{ color:var(--ink-soft); opacity:.7; }
+    .detail-text .sub.empty{ opacity:.7; }
     .detail-none{
       font-family:"游ゴシック","Yu Gothic","Noto Sans CJK JP",sans-serif;
       font-size:9.5pt;
@@ -552,7 +548,6 @@
     // 宿題・授業範囲の4項目がすべて空のときは「（内容未入力）」を1行だけ出す
     function buildRows(entry){
       const wrap = document.createElement('div');
-      wrap.className = 'detail-rows';
       const has = [entry.hwAlg, entry.hwGeo, entry.scopeAlg, entry.scopeGeo]
         .some(v => (v || '').trim() !== '');
       if(!has){
@@ -572,10 +567,8 @@
   ListDetail.injectCss();
 
   // ---------- 一覧の月ごと表示（ver.1.4.0） ----------
-  /* ver.1.4.0: 一覧を月ごとにまとめて表示するモジュール(mydiaryの日記一覧と同じ仕組み)
-     使い方:
-       ListMonths.injectCss();                                    // 起動時に1回
-       ListMonths.render(container, entries, buildCard);          // 一覧を描く
+  /* 一覧を月ごとにまとめて表示する(mydiaryの日記一覧と同じ仕組み)。
+       render(container, entries, buildCard): 一覧を描く
          entries   : 日付の新しい順に並んだレポートの配列(日付未設定は末尾)
          buildCard : entry を受け取り、カードのDOM要素を返す関数
      仕様:
@@ -707,11 +700,9 @@
       }
     }
 
-    return { injectCss, render, defaultOpenSet, group };
+    return { injectCss, render };
   })();
   ListMonths.injectCss();
-
-
 
   /* =========================================================
      バージョン（他アプリと共通のルール）
@@ -722,8 +713,11 @@
      画面にのみ表示し、PDF（#print-report）には出力しない。
      更新時は VERSION と CHANGELOG の両方を必ず更新する。
      ========================================================= */
-  const VERSION = 'ver.1.4.1';
+  const VERSION = 'ver.1.4.2';
   const CHANGELOG = [
+    { v:'ver.1.4.2', date:'2026-10-24', items:[
+      '内部の整理（使われていないコードの削除。見た目・動作の変更はありません）'
+    ]},
     { v:'ver.1.4.1', date:'2026-10-24', items:[
       '修正：一覧の「＋ 新規作成」や、保存・破棄の後に、日付が空欄になってしまう不具合を修正（新しく入力するときは、いつも今日の日付が入るようにした）',
       '修正：日本時間の0時〜9時にアプリを開くと、日付の初期値が前日になっていた不具合を修正（端末の日付で決めるように変更）'
