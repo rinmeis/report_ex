@@ -722,8 +722,12 @@
      画面にのみ表示し、PDF（#print-report）には出力しない。
      更新時は VERSION と CHANGELOG の両方を必ず更新する。
      ========================================================= */
-  const VERSION = 'ver.1.4.0';
+  const VERSION = 'ver.1.4.1';
   const CHANGELOG = [
+    { v:'ver.1.4.1', date:'2026-10-24', items:[
+      '修正：一覧の「＋ 新規作成」や、保存・破棄の後に、日付が空欄になってしまう不具合を修正（新しく入力するときは、いつも今日の日付が入るようにした）',
+      '修正：日本時間の0時〜9時にアプリを開くと、日付の初期値が前日になっていた不具合を修正（端末の日付で決めるように変更）'
+    ]},
     { v:'ver.1.4.0', date:'2026-10-11', items:[
       '一覧を月ごとにまとめて表示するように変更（「2026年10月 3件」のような見出しを押して開閉。最初は今月と先月だけ開き、日付未設定のレポートは最後の「日付未設定」にまとめる。開閉の状態はページを開いている間だけ保持）'
     ]},
@@ -768,6 +772,12 @@
     return '' + y + m + day;
   }
 
+  // 端末の日付(ローカル)での今日。toISOString()はUTC基準で日本の0〜9時に前日になるため使わない
+  function todayISO(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
   function showStatus(msg){
     const el = document.getElementById('status-msg');
     el.textContent = msg;
@@ -807,6 +817,7 @@
   function clearForm(){
     currentEditId = null;
     setFormEntry({});
+    document.getElementById('f-date').value = todayISO();  // 新規入力のときは今日の日付を入れておく
   }
 
   // ---------- 保存領域(localStorage) ----------
@@ -980,7 +991,7 @@
   });
 
   // 初期表示：今日の日付をデフォルトで入れておく（空欄にしたい場合は消してOK）
-  document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('f-date').value = todayISO();
 
   // バージョン情報・更新履歴の表示（画面のみ／PDFには出力しない）
   document.getElementById('ver-badge').textContent = VERSION;
