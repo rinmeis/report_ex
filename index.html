@@ -704,6 +704,61 @@
   })();
   ListMonths.injectCss();
 
+  // ---------- 一覧のPDFボタン（ver.1.5.0） ----------
+  /* 一覧のカードに付ける「PDF」ボタンの部品。
+       buildButton(fn): ボタンのDOM要素を返す。押すと fn() を呼ぶ
+     実際のPDF出力(印刷用レイアウトへの反映→印刷画面)は printEntry(entry) が行う。
+     このボタンは保存も編集モードへの移動もしない(データには触れない)。 */
+  const ListPdf = (function(){
+    const CSS = `
+    .btn-pdf{
+      display:inline-flex;
+      align-items:center;
+      gap:5px;
+      background:#fff;
+      color:var(--accent-dark);
+      border:1px solid var(--accent);
+    }
+    .btn-pdf svg{ width:12px; height:12px; flex:0 0 auto; }`;
+
+    function injectCss(){
+      if(document.getElementById('list-pdf-css')) return;
+      const st = document.createElement('style');
+      st.id = 'list-pdf-css';
+      st.textContent = CSS;
+      document.head.appendChild(st);
+    }
+
+    // 書類のアイコン(外部ファイルなし。色は文字色に合わせる)
+    function icon(){
+      const ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('viewBox', '0 0 12 12');
+      svg.setAttribute('aria-hidden', 'true');
+      const p = document.createElementNS(ns, 'path');
+      p.setAttribute('d', 'M2.5 1h4.5l2.5 2.5V11h-7zM7 1v2.5h2.5');
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', 'currentColor');
+      p.setAttribute('stroke-width', '1.1');
+      p.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(p);
+      return svg;
+    }
+
+    function buildButton(onClick){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-pdf';
+      btn.appendChild(icon());
+      btn.appendChild(document.createTextNode('PDF'));
+      btn.addEventListener('click', onClick);
+      return btn;
+    }
+
+    return { injectCss, buildButton };
+  })();
+  ListPdf.injectCss();
+
   /* =========================================================
      バージョン（他アプリと共通のルール）
      ---------------------------------------------------------
@@ -713,8 +768,11 @@
      画面にのみ表示し、PDF（#print-report）には出力しない。
      更新時は VERSION と CHANGELOG の両方を必ず更新する。
      ========================================================= */
-  const VERSION = 'ver.1.4.2';
+  const VERSION = 'ver.1.5.0';
   const CHANGELOG = [
+    { v:'ver.1.5.0', date:'2026-11-16', items:[
+      '一覧の各カードに「PDF」ボタンを追加（編集と削除の間）。押すと、そのレポートのA4 PDFを作る印刷画面がすぐに開く（保存や編集画面への移動はしない。ファイル名は「授業日_授業レポート」）'
+    ]},
     { v:'ver.1.4.2', date:'2026-10-24', items:[
       '内部の整理（使われていないコードの削除。見た目・動作の変更はありません）'
     ]},
@@ -894,6 +952,8 @@
       });
       actions.appendChild(editBtn);
 
+      actions.appendChild(ListPdf.buildButton(() => printEntry(entry)));
+
       const delBtn = document.createElement('button');
       delBtn.className = 'btn-delete';
       delBtn.textContent = '削除';
@@ -924,6 +984,18 @@
     document.getElementById('p-items').textContent = entry.items || '';
     document.getElementById('p-remarks').textContent = entry.remarks || '';
     // メモ（entry.memo）はここで意図的に使用していません＝PDFに出力されません
+  }
+
+  // 1件のレポートをPDFにする(保存ボタンと一覧のPDFボタンで共用)。
+  // 印刷用DOMに反映 → document.title を一時的に「授業日_授業レポート」にして印刷画面を開く(Chrome系は保存名にtitleを使う)
+  function printEntry(entry){
+    fillPrintReport(entry);
+    const originalTitle = document.title;
+    document.title = formatDateForFilename(entry.date) + '_授業レポート';
+    setTimeout(() => {
+      window.print();
+      document.title = originalTitle;
+    }, 150);
   }
 
   // ---------- タブ切り替え ----------
@@ -962,15 +1034,9 @@
     try{
       const entry = getFormEntry();
       const saved = await saveEntry(entry);
-      fillPrintReport(saved);
+      printEntry(saved);
       clearForm();
       showStatus('保存しました。PDF作成画面を開きます…');
-      const originalTitle = document.title;
-      document.title = formatDateForFilename(saved.date) + '_授業レポート';
-      setTimeout(() => {
-        window.print();
-        document.title = originalTitle;
-      }, 150);
     }catch(e){
       console.error(e);
       showStatus('保存またはPDF作成に失敗しました。');
